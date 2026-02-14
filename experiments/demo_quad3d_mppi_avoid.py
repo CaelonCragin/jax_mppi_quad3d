@@ -92,7 +92,7 @@ def main():
         os.path.join(outdir, "quad3d_xz.png"),
         os.path.join(outdir, "quad3d_yz.png"),
     )
-    plot_trajectory_3d(P, Pref, os.path.join(outdir, "quad3d_traj3d.png"))
+    plot_trajectory_3d(P, Pref, spheres, os.path.join(outdir, "quad3d_traj3d.png"))
 
     gif_path = os.path.join(outdir, "demo_quad3d_xy.gif")
     make_gif(frames_dir, gif_path, fps=25)

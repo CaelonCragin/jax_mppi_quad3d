@@ -13,6 +13,10 @@ def make_gif(frames_dir: str, gif_path: str, fps: int = 25) -> None:
     duration_ms = int(1000 / fps)
     imageio.mimsave(gif_path, images, duration=duration_ms)
 
+def _add_circle(ax, cx, cy, r):
+    circ = plt.Circle((cx, cy), r, fill=False)
+    ax.add_patch(circ)
+
 def save_frame_xy(P: np.ndarray, Pref: np.ndarray, spheres: np.ndarray, p_now: np.ndarray, outpath: str, title: str):
     plt.figure()
     plt.plot(Pref[:,0], Pref[:,1], "--", linewidth=1, label="ref (xy)")
@@ -22,8 +26,7 @@ def save_frame_xy(P: np.ndarray, Pref: np.ndarray, spheres: np.ndarray, p_now: n
     ax = plt.gca()
     for s in spheres:
         cx, cy, cz, r = s
-        circ = plt.Circle((cx, cy), r, fill=False)
-        ax.add_patch(circ)
+        _add_circle(ax, cx, cy, r)
 
     plt.axis("equal")
     plt.xlabel("x [m]")
@@ -71,14 +74,18 @@ def plot_cost(t: np.ndarray, J: np.ndarray, outpath: str):
     plt.savefig(outpath, dpi=150)
     plt.close()
 
-def plot_projections(P: np.ndarray, Pref: np.ndarray, out_xy: str, out_xz: str, out_yz: str):
+def plot_projections(P: np.ndarray, Pref: np.ndarray, spheres: np.ndarray,
+                     out_xy: str, out_xz: str, out_yz: str):
     # XY
     plt.figure()
     plt.plot(Pref[:,0], Pref[:,1], "--", label="ref")
     plt.plot(P[:,0], P[:,1], label="quad")
+    ax = plt.gca()
+    for cx, cy, cz, r in spheres:
+        _add_circle(ax, cx, cy, r)
     plt.axis("equal")
     plt.xlabel("x [m]"); plt.ylabel("y [m]")
-    plt.title("Trajectory projection: XY")
+    plt.title("Trajectory projection: XY (with obstacles)")
     plt.legend(); plt.tight_layout()
     plt.savefig(out_xy, dpi=150)
     plt.close()
@@ -87,9 +94,12 @@ def plot_projections(P: np.ndarray, Pref: np.ndarray, out_xy: str, out_xz: str, 
     plt.figure()
     plt.plot(Pref[:,0], Pref[:,2], "--", label="ref")
     plt.plot(P[:,0], P[:,2], label="quad")
+    ax = plt.gca()
+    for cx, cy, cz, r in spheres:
+        _add_circle(ax, cx, cz, r)
     plt.axis("equal")
     plt.xlabel("x [m]"); plt.ylabel("z [m]")
-    plt.title("Trajectory projection: XZ")
+    plt.title("Trajectory projection: XZ (with obstacles)")
     plt.legend(); plt.tight_layout()
     plt.savefig(out_xz, dpi=150)
     plt.close()
@@ -98,22 +108,39 @@ def plot_projections(P: np.ndarray, Pref: np.ndarray, out_xy: str, out_xz: str, 
     plt.figure()
     plt.plot(Pref[:,1], Pref[:,2], "--", label="ref")
     plt.plot(P[:,1], P[:,2], label="quad")
+    ax = plt.gca()
+    for cx, cy, cz, r in spheres:
+        _add_circle(ax, cy, cz, r)
     plt.axis("equal")
     plt.xlabel("y [m]"); plt.ylabel("z [m]")
-    plt.title("Trajectory projection: YZ")
+    plt.title("Trajectory projection: YZ (with obstacles)")
     plt.legend(); plt.tight_layout()
     plt.savefig(out_yz, dpi=150)
     plt.close()
 
-def plot_trajectory_3d(P: np.ndarray, Pref: np.ndarray, outpath: str):
+def _plot_wire_sphere(ax, cx, cy, cz, r, n=18):
+    # lightweight wireframe sphere
+    u = np.linspace(0, 2*np.pi, n)
+    v = np.linspace(0, np.pi, n)
+    xs = cx + r * np.outer(np.cos(u), np.sin(v))
+    ys = cy + r * np.outer(np.sin(u), np.sin(v))
+    zs = cz + r * np.outer(np.ones_like(u), np.cos(v))
+    ax.plot_wireframe(xs, ys, zs, rstride=2, cstride=2, linewidth=0.6)
+
+def plot_trajectory_3d(P: np.ndarray, Pref: np.ndarray, spheres: np.ndarray, outpath: str):
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
+
     ax.plot(Pref[:,0], Pref[:,1], Pref[:,2], linestyle="--", label="ref")
     ax.plot(P[:,0], P[:,1], P[:,2], label="quad")
+
+    for cx, cy, cz, r in spheres:
+        _plot_wire_sphere(ax, cx, cy, cz, r)
+
     ax.set_xlabel("x [m]"); ax.set_ylabel("y [m]"); ax.set_zlabel("z [m]")
-    ax.set_title("3D trajectory")
+    ax.set_title("3D trajectory (with spherical obstacles)")
     ax.legend()
     plt.tight_layout()
     plt.savefig(outpath, dpi=150)
