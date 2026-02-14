@@ -41,7 +41,7 @@ def plot_xyz(t: np.ndarray, P: np.ndarray, outpath: str):
     plt.plot(t, P[:,2], label="z")
     plt.xlabel("time [s]")
     plt.ylabel("position [m]")
-    plt.title("Quad3D position vs time")
+    plt.title("Position vs time")
     plt.legend()
     plt.tight_layout()
     plt.savefig(outpath, dpi=150)
@@ -55,7 +55,7 @@ def plot_inputs(t: np.ndarray, U: np.ndarray, outpath: str):
     plt.plot(t, U[:,3], label="tau_z")
     plt.xlabel("time [s]")
     plt.ylabel("control")
-    plt.title("Quad3D controls vs time")
+    plt.title("Controls vs time")
     plt.legend()
     plt.tight_layout()
     plt.savefig(outpath, dpi=150)
@@ -67,6 +67,54 @@ def plot_cost(t: np.ndarray, J: np.ndarray, outpath: str):
     plt.xlabel("time [s]")
     plt.ylabel("best cost")
     plt.title("MPPI best cost vs time")
+    plt.tight_layout()
+    plt.savefig(outpath, dpi=150)
+    plt.close()
+
+def plot_projections(P: np.ndarray, Pref: np.ndarray, out_xy: str, out_xz: str, out_yz: str):
+    # XY
+    plt.figure()
+    plt.plot(Pref[:,0], Pref[:,1], "--", label="ref")
+    plt.plot(P[:,0], P[:,1], label="quad")
+    plt.axis("equal")
+    plt.xlabel("x [m]"); plt.ylabel("y [m]")
+    plt.title("Trajectory projection: XY")
+    plt.legend(); plt.tight_layout()
+    plt.savefig(out_xy, dpi=150)
+    plt.close()
+
+    # XZ
+    plt.figure()
+    plt.plot(Pref[:,0], Pref[:,2], "--", label="ref")
+    plt.plot(P[:,0], P[:,2], label="quad")
+    plt.axis("equal")
+    plt.xlabel("x [m]"); plt.ylabel("z [m]")
+    plt.title("Trajectory projection: XZ")
+    plt.legend(); plt.tight_layout()
+    plt.savefig(out_xz, dpi=150)
+    plt.close()
+
+    # YZ
+    plt.figure()
+    plt.plot(Pref[:,1], Pref[:,2], "--", label="ref")
+    plt.plot(P[:,1], P[:,2], label="quad")
+    plt.axis("equal")
+    plt.xlabel("y [m]"); plt.ylabel("z [m]")
+    plt.title("Trajectory projection: YZ")
+    plt.legend(); plt.tight_layout()
+    plt.savefig(out_yz, dpi=150)
+    plt.close()
+
+def plot_trajectory_3d(P: np.ndarray, Pref: np.ndarray, outpath: str):
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    ax.plot(Pref[:,0], Pref[:,1], Pref[:,2], linestyle="--", label="ref")
+    ax.plot(P[:,0], P[:,1], P[:,2], label="quad")
+    ax.set_xlabel("x [m]"); ax.set_ylabel("y [m]"); ax.set_zlabel("z [m]")
+    ax.set_title("3D trajectory")
+    ax.legend()
     plt.tight_layout()
     plt.savefig(outpath, dpi=150)
     plt.close()
