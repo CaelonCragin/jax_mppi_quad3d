@@ -40,7 +40,7 @@ def main():
     hover = quad.m * quad.g
     ctrl.U = ctrl.U.at[:, 0].set(hover)
 
-    Tfinal = 10.0
+    Tfinal = 30.0
     dt = mppi_cfg.dt
     steps = int(Tfinal / dt)
 
@@ -50,7 +50,7 @@ def main():
     Jhist = np.zeros((steps,), dtype=np.float32)
     thist = np.zeros((steps,), dtype=np.float32)
 
-    save_every = 5
+    save_every = 10
     frame_idx = 0
 
     for k in range(steps):
