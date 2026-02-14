@@ -8,36 +8,46 @@ from jax_mppi_quad3d.costs import total_cost
 
 @dataclass
 class MPPIConfig3D:
-    H: int = 30
+    H: int = 45
     N: int = 1024
     dt: float = 0.02
 
-    sigma_T: float = 2.0
-    sigma_tau: float = 0.25
+    sigma_T: float = 1.5
+    sigma_tau: float = 0.12
     lam: float = 1.0
     u_smooth: float = 0.25
 
     # costs
-    w_track: float = 6.0
+    w_track: float = 10.0
     w_vel: float = 0.2
-    w_w: float = 0.05
-    w_u: float = 0.01
-    w_obs: float = 120.0
+    w_w: float = 0.03
+    w_upright: float = 3.0   # <<< NEW: keep upright
+    w_T: float = 0.02
+    w_tau: float = 0.02
+    w_obs: float = 220.0
     obs_margin: float = 0.35
 
 class MPPIQuad3D:
     def __init__(self, cfg: MPPIConfig3D, quad: Quad3DConfig, seed: int = 0):
         self.cfg = cfg
         self.quad = quad
+        self.hover = float(quad.m * quad.g)
+
         self.key = jax.random.PRNGKey(seed)
+
+        # Initialize nominal controls at hover
         self.U = jnp.zeros((cfg.H, 4), dtype=jnp.float32)
+        self.U = self.U.at[:, 0].set(self.hover)
+
         self._update_jit = jax.jit(self._update_once)
 
     def reset(self):
         self.U = jnp.zeros_like(self.U)
+        self.U = self.U.at[:, 0].set(self.hover)
 
     def shift(self):
-        self.U = jnp.vstack([self.U[1:], jnp.zeros((1, 4), dtype=self.U.dtype)])
+        tail = jnp.array([[self.hover, 0.0, 0.0, 0.0]], dtype=self.U.dtype)
+        self.U = jnp.vstack([self.U[1:], tail])
 
     def act(self, x0: jnp.ndarray, Pref: jnp.ndarray, spheres: jnp.ndarray):
         self.key, sub = jax.random.split(self.key)
@@ -61,16 +71,17 @@ class MPPIQuad3D:
         eps_tau = cfg.sigma_tau * jax.random.normal(key2, (cfg.N, cfg.H, 3), dtype=U_nom.dtype)
         eps = jnp.concatenate([eps_T, eps_tau], axis=-1)
 
-        U_samp = U_nom[None, :, :] + eps  # (N,H,4)
+        U_samp = U_nom[None, :, :] + eps
 
-        # batched rollouts
-        X_samp = jax.vmap(lambda U: self._rollout(x0, U), in_axes=0)(U_samp)  # (N,H+1,13)
+        X_samp = jax.vmap(lambda U: self._rollout(x0, U), in_axes=0)(U_samp)
 
-        # costs
         J = jax.vmap(
             lambda X, U: total_cost(
                 X, U, Pref, spheres,
-                cfg.w_track, cfg.w_vel, cfg.w_w, cfg.w_u,
+                self.hover,
+                cfg.w_track, cfg.w_vel, cfg.w_w,
+                cfg.w_upright,
+                cfg.w_T, cfg.w_tau,
                 cfg.w_obs, cfg.obs_margin
             ),
             in_axes=(0, 0)
