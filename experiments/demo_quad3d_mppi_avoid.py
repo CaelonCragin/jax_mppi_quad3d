@@ -3,7 +3,7 @@ import os, shutil
 import numpy as np
 import jax.numpy as jnp
 
-from jax_mppi_quad3d.dynamics import Quad3DConfig, step_euler
+from jax_mppi_quad3d.dynamics import Quad3DConfig, step_euler, clamp_u
 from jax_mppi_quad3d.reference import make_ref_horizon
 from jax_mppi_quad3d.mppi import MPPIConfig3D, MPPIQuad3D
 from jax_mppi_quad3d.viz import ensure_dir, save_frame_xy, make_gif, plot_xyz, plot_inputs, plot_cost
@@ -18,7 +18,7 @@ def main():
     os.makedirs(frames_dir, exist_ok=True)
 
     quad = Quad3DConfig()
-    mppi_cfg = MPPIConfig3D(H=35, N=1024, dt=0.02)
+    mppi_cfg = MPPIConfig3D(H=40, N=1024, dt=0.02)
     ctrl = MPPIQuad3D(mppi_cfg, quad, seed=0)
 
     # Spherical obstacles (cx,cy,cz,r)
@@ -30,14 +30,15 @@ def main():
     spheres_j = jnp.array(spheres)
 
     # Initial state: p,v,q,w
-    p0 = jnp.array([2.8, 0.0, 0.4], dtype=jnp.float32)
+    p0 = jnp.array([2.8, 0.0, 0.8], dtype=jnp.float32)
     v0 = jnp.zeros(3, dtype=jnp.float32)
     q0 = jnp.array([1.0, 0.0, 0.0, 0.0], dtype=jnp.float32)
     w0 = jnp.zeros(3, dtype=jnp.float32)
     x = jnp.concatenate([p0, v0, q0, w0], axis=0)
 
-    # Give nominal hover thrust as a starting bias (optional but helps)
-    ctrl.U = ctrl.U.at[:,0].set(quad.m * quad.g)
+    # Start nominal controls near hover
+    hover = quad.m * quad.g
+    ctrl.U = ctrl.U.at[:, 0].set(hover)
 
     Tfinal = 10.0
     dt = mppi_cfg.dt
@@ -57,9 +58,11 @@ def main():
         thist[k] = t
 
         Pref_h = make_ref_horizon(t, dt, mppi_cfg.H)
-        u, bestJ = ctrl.act(x, Pref_h, spheres_j)
+        u_raw, bestJ = ctrl.act(x, Pref_h, spheres_j)
 
-        # step dynamics
+        # Clamp for logging + stepping
+        u = clamp_u(u_raw, quad)
+
         x = step_euler(x, u, dt, quad)
 
         P[k] = np.array(x[0:3])
